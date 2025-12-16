@@ -37,18 +37,19 @@
 .controls-info {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  gap: 15px;
   flex-wrap: wrap;
   margin-top: 10px;
 }
 
 .controls-info span {
   background: rgba(0, 0, 0, 0.6);
-  padding: 8px 16px;
+  padding: 8px 12px;
   border-radius: 20px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
 }
 
 /* 响应式设计 */
@@ -62,12 +63,12 @@
   }
   
   .controls-info {
-    gap: 10px;
+    gap: 8px;
   }
   
   .controls-info span {
-    padding: 6px 12px;
-    font-size: 0.8rem;
+    padding: 6px 10px;
+    font-size: 0.75rem;
   }
 }
 
