@@ -8,7 +8,7 @@ function App() {
       <EarthGlobe />
       <div className="info-overlay">
         <h1>3D Earth Globe</h1>
-        <p>Drag to rotate the Earth • Scroll to zoom (coming soon)</p>
+        <p>Drag to rotate the globe • Explore our planet in 3D</p>
         <div className="controls-info">
           <span>🖱️ Click and drag to rotate</span>
           <span>📱 Touch and drag on mobile</span>
