@@ -10,16 +10,17 @@ const EarthGlobe = () => {
   const rotationRef = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const previousMousePositionRef = useRef({ x: 0, y: 0 });
+  const autoRotationRef = useRef(0);
 
   useEffect(() => {
     // 初始化场景
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000814);
+    scene.background = new THREE.Color(0x000022);
     sceneRef.current = scene;
 
     // 初始化相机
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 2.5;
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 3;
     cameraRef.current = camera;
 
     // 初始化渲染器
@@ -32,51 +33,28 @@ const EarthGlobe = () => {
     // 创建地球几何体
     const geometry = new THREE.SphereGeometry(1, 64, 64);
 
-    // 加载地球纹理
-    const textureLoader = new THREE.TextureLoader();
-    const earthTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
-    const bumpMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg');
-    const specularMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg');
-
+    // 创建简单的颜色材质作为后备（避免黑色）
     const material = new THREE.MeshPhongMaterial({
-      map: earthTexture,
-      bumpMap: bumpMap,
-      bumpScale: 0.05,
-      specularMap: specularMap,
-      specular: new THREE.Color(0x333333),
-      shininess: 5
+      color: 0x2233ff,
+      shininess: 30
     });
 
     const earth = new THREE.Mesh(geometry, material);
     scene.add(earth);
     earthRef.current = earth;
 
-    // 添加环境光和点光源
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+    // 添加更强的光源
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 3, 5);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    directionalLight.position.set(2, 1, 3);
     scene.add(directionalLight);
 
-    // 添加星星背景
-    const starGeometry = new THREE.BufferGeometry();
-    const starCount = 5000;
-    const starPositions = new Float32Array(starCount * 3);
-    
-    for (let i = 0; i < starCount * 3; i++) {
-      starPositions[i] = (Math.random() - 0.5) * 2000;
-    }
-    
-    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starMaterial = new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 1.5,
-      sizeAttenuation: false
-    });
-    
-    const stars = new THREE.Points(starGeometry, starMaterial);
-    scene.add(stars);
+    // 添加点光源增强效果
+    const pointLight = new THREE.PointLight(0xffffff, 0.8);
+    pointLight.position.set(-2, -1, -3);
+    scene.add(pointLight);
 
     // 鼠标事件处理
     const handleMouseDown = (event) => {
@@ -85,6 +63,7 @@ const EarthGlobe = () => {
         x: event.clientX,
         y: event.clientY
       };
+      mountRef.current.style.cursor = 'grabbing';
     };
 
     const handleMouseMove = (event) => {
@@ -97,7 +76,7 @@ const EarthGlobe = () => {
       rotationRef.current.x += deltaY * 0.01;
 
       // 限制垂直旋转角度
-      rotationRef.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationRef.current.x));
+      rotationRef.current.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, rotationRef.current.x));
 
       previousMousePositionRef.current = {
         x: event.clientX,
@@ -107,6 +86,7 @@ const EarthGlobe = () => {
 
     const handleMouseUp = () => {
       isDraggingRef.current = false;
+      mountRef.current.style.cursor = 'grab';
     };
 
     const handleTouchStart = (event) => {
@@ -116,6 +96,7 @@ const EarthGlobe = () => {
           x: event.touches[0].clientX,
           y: event.touches[0].clientY
         };
+        mountRef.current.style.cursor = 'grabbing';
         event.preventDefault();
       }
     };
@@ -129,7 +110,7 @@ const EarthGlobe = () => {
       rotationRef.current.y += deltaX * 0.01;
       rotationRef.current.x += deltaY * 0.01;
 
-      rotationRef.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationRef.current.x));
+      rotationRef.current.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, rotationRef.current.x));
 
       previousMousePositionRef.current = {
         x: event.touches[0].clientX,
@@ -140,6 +121,7 @@ const EarthGlobe = () => {
 
     const handleTouchEnd = () => {
       isDraggingRef.current = false;
+      mountRef.current.style.cursor = 'grab';
     };
 
     // 添加事件监听器
@@ -155,14 +137,18 @@ const EarthGlobe = () => {
     const animate = () => {
       requestAnimationFrame(animate);
       
+      // 获取当前地球对象
+      const earth = earthRef.current;
+      if (!earth) return;
+      
       // 自动缓慢旋转（当没有拖拽时）
       if (!isDraggingRef.current) {
-        earth.rotation.y += 0.001;
+        autoRotationRef.current += 0.002;
       }
       
-      // 应用手动旋转
+      // 应用旋转
       earth.rotation.x = rotationRef.current.x;
-      earth.rotation.y = rotationRef.current.y + (isDraggingRef.current ? 0 : earth.rotation.y);
+      earth.rotation.y = rotationRef.current.y + autoRotationRef.current;
       
       renderer.render(scene, camera);
     };
@@ -171,9 +157,10 @@ const EarthGlobe = () => {
 
     // 窗口大小调整处理
     const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      if (!cameraRef.current || !rendererRef.current) return;
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
     };
     
     window.addEventListener('resize', handleResize);
@@ -191,7 +178,9 @@ const EarthGlobe = () => {
       if (mountRef.current && renderer.domElement) {
         mountRef.current.removeChild(renderer.domElement);
       }
-      renderer.dispose();
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+      }
     };
   }, []);
 
@@ -204,7 +193,8 @@ const EarthGlobe = () => {
         position: 'fixed',
         top: 0,
         left: 0,
-        cursor: 'grab'
+        cursor: 'grab',
+        backgroundColor: '#000022'
       }}
     />
   );
