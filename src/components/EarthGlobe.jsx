@@ -1,6 +1,49 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
+// 简单的地球颜色数据（简化版）
+const createEarthTexture = () => {
+  const canvas = document.createElement('canvas');
+  const size = 256;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  
+  // 背景蓝色（海洋）
+  ctx.fillStyle = '#1e88e5';
+  ctx.fillRect(0, 0, size, size);
+  
+  // 添加一些绿色区域（大陆）
+  ctx.fillStyle = '#388e3c';
+  
+  // 北美
+  ctx.beginPath();
+  ctx.ellipse(size * 0.3, size * 0.4, size * 0.15, size * 0.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 南美
+  ctx.beginPath();
+  ctx.ellipse(size * 0.35, size * 0.7, size * 0.1, size * 0.15, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 欧洲/非洲
+  ctx.beginPath();
+  ctx.ellipse(size * 0.6, size * 0.5, size * 0.12, size * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 亚洲
+  ctx.beginPath();
+  ctx.ellipse(size * 0.75, size * 0.45, size * 0.18, size * 0.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 澳大利亚
+  ctx.beginPath();
+  ctx.ellipse(size * 0.8, size * 0.7, size * 0.08, size * 0.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  return canvas;
+};
+
 const EarthGlobe = () => {
   const mountRef = useRef(null);
 
@@ -28,101 +71,19 @@ const EarthGlobe = () => {
     // 创建地球几何体
     const geometry = new THREE.SphereGeometry(1, 64, 64);
     
-    // 使用可靠的地球纹理 - 尝试多个源
-    const textureLoader = new THREE.TextureLoader();
-    let material;
+    // 使用自定义地球纹理
+    const earthCanvas = createEarthTexture();
+    const texture = new THREE.CanvasTexture(earthCanvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
     
-    // 首先尝试加载真实地球纹理
-    const earthTextureUrls = [
-      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg',
-      'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'
-    ];
-    
-    let textureLoaded = false;
-    
-    const loadTexture = (urls, index = 0) => {
-      if (index >= urls.length) {
-        // 所有URL都失败，使用后备方案
-        createFallbackMaterial();
-        return;
-      }
-      
-      textureLoader.load(
-        urls[index],
-        (texture) => {
-          // 纹理加载成功
-          texture.colorSpace = THREE.SRGBColorSpace;
-          material = new THREE.MeshPhongMaterial({
-            map: texture,
-            shininess: 5,
-            specular: new THREE.Color(0x333333)
-          });
-          if (earthRef.current) {
-            earthRef.current.material = material;
-            earthRef.current.material.needsUpdate = true;
-          }
-          textureLoaded = true;
-        },
-        undefined,
-        (error) => {
-          console.warn(`Failed to load texture from ${urls[index]}:`, error);
-          // 尝试下一个URL
-          loadTexture(urls, index + 1);
-        }
-      );
-    };
-    
-    const createFallbackMaterial = () => {
-      // 创建更逼真的后备材质
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 256;
-      const ctx = canvas.getContext('2d');
-      
-      // 创建类似地球的纹理
-      const gradient = ctx.createLinearGradient(0, 0, 512, 256);
-      gradient.addColorStop(0, '#006994');
-      gradient.addColorStop(0.3, '#29b6f6');
-      gradient.addColorStop(0.5, '#1e88e5');
-      gradient.addColorStop(0.7, '#0288d1');
-      gradient.addColorStop(1, '#01579b');
-      
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 512, 256);
-      
-      // 添加一些大陆形状的模拟
-      ctx.fillStyle = '#2e7d32';
-      ctx.beginPath();
-      ctx.ellipse(150, 100, 40, 60, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(350, 150, 50, 40, 0, 0, Math.PI * 2);
-      ctx.fill();
-      
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      material = new THREE.MeshPhongMaterial({
-        map: texture,
-        shininess: 15,
-        specular: new THREE.Color(0xffffff)
-      });
-      
-      if (earthRef.current) {
-        earthRef.current.material = material;
-        earthRef.current.material.needsUpdate = true;
-      }
-    };
-
-    // 初始使用简单蓝色材质
-    material = new THREE.MeshPhongMaterial({ 
-      color: 0x1e88e5,
-      shininess: 30,
+    const material = new THREE.MeshPhongMaterial({
+      map: texture,
+      shininess: 15,
       specular: new THREE.Color(0xffffff)
     });
-    
+
     const earth = new THREE.Mesh(geometry, material);
     scene.add(earth);
-    const earthRef = { current: earth };
 
     // 添加光源
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
@@ -135,6 +96,25 @@ const EarthGlobe = () => {
     const pointLight = new THREE.PointLight(0xffffff, 0.5);
     pointLight.position.set(-5, -3, -5);
     scene.add(pointLight);
+
+    // 添加星星背景
+    const starGeometry = new THREE.BufferGeometry();
+    const starCount = 2000;
+    const starPositions = new Float32Array(starCount * 3);
+    
+    for (let i = 0; i < starCount * 3; i++) {
+      starPositions[i] = (Math.random() - 0.5) * 200;
+    }
+    
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 1.2,
+      sizeAttenuation: false
+    });
+    
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
 
     // 旋转和缩放状态
     let isDragging = false;
@@ -225,9 +205,6 @@ const EarthGlobe = () => {
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd);
 
-    // 开始加载纹理
-    loadTexture(earthTextureUrls);
-
     // 动画循环
     let animationId;
     const animate = () => {
@@ -241,6 +218,7 @@ const EarthGlobe = () => {
       // 应用手动旋转
       earth.rotation.x = rotation.x;
       earth.rotation.y += rotation.y;
+      rotation.y = 0;
       
       renderer.render(scene, camera);
     };
