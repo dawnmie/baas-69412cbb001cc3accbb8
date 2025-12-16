@@ -5,84 +5,67 @@ const EarthGlobe = () => {
   const mountRef = useRef(null);
 
   useEffect(() => {
+    // 检查WebGL支持
+    if (!window.WebGLRenderingContext) {
+      console.error('WebGL not supported');
+      return;
+    }
+
     // 初始化场景
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x020a1f);
+    scene.background = new THREE.Color(0x000814);
 
     // 初始化相机
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 3;
+    camera.position.z = 2.5;
 
     // 初始化渲染器
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     mountRef.current.appendChild(renderer.domElement);
 
     // 创建地球几何体
-    const geometry = new THREE.SphereGeometry(1, 64, 64);
+    const geometry = new THREE.SphereGeometry(1, 32, 32);
     
-    // 尝试加载纹理，如果失败则使用纯色
-    let material;
-    const textureLoader = new THREE.TextureLoader();
+    // 创建渐变材质（模拟地球）
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
     
-    // 使用更可靠的纹理源
-    const earthTextureUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg';
+    // 创建径向渐变
+    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gradient.addColorStop(0, '#1e88e5');
+    gradient.addColorStop(0.3, '#29b6f6');
+    gradient.addColorStop(0.7, '#0288d1');
+    gradient.addColorStop(1, '#01579b');
     
-    textureLoader.load(
-      earthTextureUrl,
-      (texture) => {
-        // 纹理加载成功
-        material = new THREE.MeshPhongMaterial({
-          map: texture,
-          shininess: 30,
-          specular: new THREE.Color(0x333333)
-        });
-        if (earthRef.current) {
-          earthRef.current.material = material;
-          earthRef.current.material.needsUpdate = true;
-        }
-      },
-      undefined,
-      (error) => {
-        console.warn('Failed to load earth texture, using solid color:', error);
-        // 使用蓝色作为后备
-        material = new THREE.MeshPhongMaterial({ 
-          color: 0x1e88e5,
-          shininess: 60,
-          specular: 0xffffff
-        });
-        if (earthRef.current) {
-          earthRef.current.material = material;
-          earthRef.current.material.needsUpdate = true;
-        }
-      }
-    );
-
-    // 初始使用蓝色材质
-    material = new THREE.MeshPhongMaterial({ 
-      color: 0x1e88e5,
-      shininess: 60,
-      specular: 0xffffff
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.MeshPhongMaterial({
+      map: texture,
+      shininess: 30,
+      specular: new THREE.Color(0xffffff)
     });
-    
+
     const earth = new THREE.Mesh(geometry, material);
     scene.add(earth);
-    const earthRef = { current: earth };
 
     // 添加光源
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(2, 2, 3);
+    directionalLight.position.set(2, 1, 3);
     scene.add(directionalLight);
 
     // 旋转状态
     let isDragging = false;
     let previousMousePosition = { x: 0, y: 0 };
     let rotation = { x: 0, y: 0 };
-    let autoRotation = 0;
 
     // 鼠标事件处理
     const handleMouseDown = (event) => {
@@ -148,26 +131,26 @@ const EarthGlobe = () => {
     };
 
     // 添加事件监听器
-    const canvas = renderer.domElement;
-    canvas.addEventListener('mousedown', handleMouseDown);
+    const canvasEl = renderer.domElement;
+    canvasEl.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvasEl.addEventListener('touchstart', handleTouchStart, { passive: false });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd);
 
     // 动画循环
+    let animationId;
     const animate = () => {
-      requestAnimationFrame(animate);
+      animationId = requestAnimationFrame(animate);
       
-      // 自动旋转
-      if (!isDragging) {
-        autoRotation += 0.002;
-      }
+      // 自动缓慢旋转
+      earth.rotation.y += 0.001;
       
-      // 应用旋转
+      // 应用手动旋转
       earth.rotation.x = rotation.x;
-      earth.rotation.y = rotation.y + autoRotation;
+      earth.rotation.y += rotation.y;
+      rotation.y = 0; // 重置手动旋转增量
       
       renderer.render(scene, camera);
     };
@@ -185,10 +168,11 @@ const EarthGlobe = () => {
 
     // 清理
     return () => {
-      canvas.removeEventListener('mousedown', handleMouseDown);
+      cancelAnimationFrame(animationId);
+      canvasEl.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvasEl.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('resize', handleResize);
