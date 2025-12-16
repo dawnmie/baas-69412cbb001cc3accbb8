@@ -19,15 +19,56 @@ const EarthGlobe = () => {
     renderer.setPixelRatio(window.devicePixelRatio);
     mountRef.current.appendChild(renderer.domElement);
 
-    // 创建地球几何体 - 使用简单的蓝色材质
-    const geometry = new THREE.SphereGeometry(1, 32, 32);
-    const material = new THREE.MeshPhongMaterial({ 
+    // 创建地球几何体
+    const geometry = new THREE.SphereGeometry(1, 64, 64);
+    
+    // 尝试加载纹理，如果失败则使用纯色
+    let material;
+    const textureLoader = new THREE.TextureLoader();
+    
+    // 使用更可靠的纹理源
+    const earthTextureUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg';
+    
+    textureLoader.load(
+      earthTextureUrl,
+      (texture) => {
+        // 纹理加载成功
+        material = new THREE.MeshPhongMaterial({
+          map: texture,
+          shininess: 30,
+          specular: new THREE.Color(0x333333)
+        });
+        if (earthRef.current) {
+          earthRef.current.material = material;
+          earthRef.current.material.needsUpdate = true;
+        }
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to load earth texture, using solid color:', error);
+        // 使用蓝色作为后备
+        material = new THREE.MeshPhongMaterial({ 
+          color: 0x1e88e5,
+          shininess: 60,
+          specular: 0xffffff
+        });
+        if (earthRef.current) {
+          earthRef.current.material = material;
+          earthRef.current.material.needsUpdate = true;
+        }
+      }
+    );
+
+    // 初始使用蓝色材质
+    material = new THREE.MeshPhongMaterial({ 
       color: 0x1e88e5,
       shininess: 60,
       specular: 0xffffff
     });
+    
     const earth = new THREE.Mesh(geometry, material);
     scene.add(earth);
+    const earthRef = { current: earth };
 
     // 添加光源
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
